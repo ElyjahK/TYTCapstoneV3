@@ -560,8 +560,10 @@ public class GroovyToCSharpTranspiler : GroovyParserBaseVisitor<CSharpSyntaxNode
             body);
     }
 
+    [AutoLog(LoggingVerbosity)]
     public override CSharpSyntaxNode VisitBinaryExpression([NotNull] GroovyParser.BinaryExpressionContext context)
     {
+        Console.WriteLine($"Visiting binary expression: {context.GetText()}");
         var left = (ExpressionSyntax)Visit(context.expression(0));
         var right = (ExpressionSyntax)Visit(context.expression(1));
 
@@ -570,14 +572,14 @@ public class GroovyToCSharpTranspiler : GroovyParserBaseVisitor<CSharpSyntaxNode
             throw new InvalidOperationException("Failed to parse binary expression operands");
         }
 
-        // Check for each possible operator
-        if (context.GT() != null)
+        if (context.LT() != null)
+        {
+            Console.WriteLine("Found less than operator");
+            return BinaryExpression(SyntaxKind.LessThanExpression, left, right);
+        }
+        else if (context.GT() != null)
         {
             return BinaryExpression(SyntaxKind.GreaterThanExpression, left, right);
-        }
-        else if (context.LT() != null)
-        {
-            return BinaryExpression(SyntaxKind.LessThanExpression, left, right);
         }
         else if (context.GTE() != null)
         {
@@ -657,6 +659,68 @@ public class GroovyToCSharpTranspiler : GroovyParserBaseVisitor<CSharpSyntaxNode
 
         return ArrayCreationExpression(arrayType)
             .WithInitializer(initializer);
+    }
+
+    [AutoLog(LoggingVerbosity)]
+    public override CSharpSyntaxNode VisitForColonStatement([NotNull] GroovyParser.ForColonStatementContext context)
+    {
+        // Get the type declaration
+        TypeSyntax type;
+        var typeDecl = context.typeDeclaration();
+        if (typeDecl != null)
+        {
+            var typeText = typeDecl.GetText().ToString().ToLower();
+            type = typeText switch
+            {
+                "int" => PredefinedType(Token(SyntaxKind.IntKeyword)),
+                "string" => PredefinedType(Token(SyntaxKind.StringKeyword)),
+                "bool" => PredefinedType(Token(SyntaxKind.BoolKeyword)),
+                _ => IdentifierName(typeText)
+            };
+        }
+        else
+        {
+            type = PredefinedType(Token(SyntaxKind.VarKeyword));
+        }
+
+        // Get the variable name
+        var identifier = context.IDENTIFIER().GetText();
+
+        // Get the collection being iterated
+        var collection = (ExpressionSyntax)Visit(context.expression());
+
+        // Get the loop body
+        var body = (StatementSyntax)Visit(context.statementBlock());
+
+        // Create foreach statement
+        return ForEachStatement(
+            type,
+            Identifier(identifier),
+            collection,
+            body);
+    }
+
+    [AutoLog(LoggingVerbosity)]
+    public override CSharpSyntaxNode VisitWhileStatement([NotNull] GroovyParser.WhileStatementContext context)
+    {
+        // Get the condition expression
+        var condition = (ExpressionSyntax)Visit(context.expression());
+        if (condition == null)
+        {
+            throw new InvalidOperationException("Failed to parse while condition");
+        }
+
+        // Get the loop body
+        var body = (StatementSyntax)Visit(context.statementBlock());
+        if (body == null)
+        {
+            body = Block(); // Empty block if no body provided
+        }
+
+        // Create while statement
+        return WhileStatement(
+            condition,
+            body is BlockSyntax ? body : Block(body));
     }
 }
 }
