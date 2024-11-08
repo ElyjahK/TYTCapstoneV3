@@ -541,6 +541,25 @@ public class GroovyToCSharpTranspiler : GroovyParserBaseVisitor<CSharpSyntaxNode
             body);
     }
 
+    public override CSharpSyntaxNode VisitForInStatement([NotNull] GroovyParser.ForInStatementContext context)
+    {
+        // Get the loop variable name
+        var identifier = context.IDENTIFIER().GetText();
+        
+        // Get the collection being iterated
+        var collection = (ExpressionSyntax)Visit(context.expression());
+        
+        // Get the loop body
+        var body = (StatementSyntax)Visit(context.statementBlock());
+        
+        // Create the foreach statement
+        return ForEachStatement(
+            IdentifierName("var"), // Use var for type inference
+            Identifier(identifier),
+            collection,
+            body);
+    }
+
     public override CSharpSyntaxNode VisitBinaryExpression([NotNull] GroovyParser.BinaryExpressionContext context)
     {
         var left = (ExpressionSyntax)Visit(context.expression(0));
