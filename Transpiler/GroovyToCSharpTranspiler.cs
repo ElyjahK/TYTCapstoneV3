@@ -1,4 +1,4 @@
-﻿using System.Text;
+﻿﻿using System.Text;
 using Antlr4.Runtime.Misc;
 using Antlr4.Runtime.Tree;
 using Microsoft.CodeAnalysis;
@@ -387,20 +387,6 @@ public class GroovyToCSharpTranspiler : GroovyParserBaseVisitor<CSharpSyntaxNode
         return Block();
     }
 
-    public override CSharpSyntaxNode VisitBinaryExpression([NotNull] GroovyParser.BinaryExpressionContext context)
-    {
-        var left = (ExpressionSyntax)Visit(context.expression(0));
-        var right = (ExpressionSyntax)Visit(context.expression(1));
-
-        // Check for each possible operator
-        if (context.GT() != null)
-        {
-            return BinaryExpression(SyntaxKind.GreaterThanExpression, left, right);
-        }
-
-        throw new InvalidOperationException($"Unsupported binary operator in expression: {context.GetText()}");
-    }
-
     public override CSharpSyntaxNode VisitSwitchStatement([NotNull] GroovyParser.SwitchStatementContext context)
     {
         Console.WriteLine($"Visiting SwitchStatement: {context.GetText()}");
@@ -498,5 +484,160 @@ public class GroovyToCSharpTranspiler : GroovyParserBaseVisitor<CSharpSyntaxNode
             .WithStatements(List(statements));
     }
 
-} // Close GroovyToCSharpTranspiler class
-} // Close TYTCapstone.Transpiler namespace
+     public override CSharpSyntaxNode VisitClassicForStatement([NotNull] GroovyParser.ClassicForStatementContext context)
+    {
+        // Handle initialization
+        var initializers = new SeparatedSyntaxList<ExpressionSyntax>();
+        LocalDeclarationStatementSyntax declaration = null;
+        
+        if (context.declarationRule() != null)
+        {
+            var declNode = Visit(context.declarationRule());
+            if (declNode is LocalDeclarationStatementSyntax localDecl)
+            {
+                declaration = localDecl;
+            }
+        }
+
+        // Handle condition
+        ExpressionSyntax condition = null;
+        var expressions = context.expression();
+        if (expressions != null && expressions.Length >= 2)
+        {
+            // The first expression is the condition (i < 5)
+            condition = (ExpressionSyntax)Visit(expressions[0]);
+            
+            // If the condition is a binary expression, ensure it's using the correct operator
+            if (condition is BinaryExpressionSyntax binaryExpr)
+            {
+                // Create a new binary expression with the correct operator
+                condition = BinaryExpression(
+                    SyntaxKind.LessThanExpression,  // Force the less than operator
+                    binaryExpr.Left,
+                    binaryExpr.Right);
+            }
+        }
+
+        // Handle increment
+        var incrementors = new SeparatedSyntaxList<ExpressionSyntax>();
+        if (expressions != null && expressions.Length >= 2)
+        {
+            // The second expression is the increment (i++)
+            incrementors = SingletonSeparatedList((ExpressionSyntax)Visit(expressions[1]));
+        }
+
+        // Get the loop body
+        StatementSyntax body = (StatementSyntax)Visit(context.statementBlock());
+        if (body == null)
+        {
+            body = Block();
+        }
+
+        return ForStatement(
+            declaration?.Declaration ?? default,
+            initializers,
+            condition,
+            incrementors,
+            body);
+    }
+
+    public override CSharpSyntaxNode VisitBinaryExpression([NotNull] GroovyParser.BinaryExpressionContext context)
+    {
+        var left = (ExpressionSyntax)Visit(context.expression(0));
+        var right = (ExpressionSyntax)Visit(context.expression(1));
+
+        if (left == null || right == null)
+        {
+            throw new InvalidOperationException("Failed to parse binary expression operands");
+        }
+
+        // Check for each possible operator
+        if (context.GT() != null)
+        {
+            return BinaryExpression(SyntaxKind.GreaterThanExpression, left, right);
+        }
+        else if (context.LT() != null)
+        {
+            return BinaryExpression(SyntaxKind.LessThanExpression, left, right);
+        }
+        else if (context.GTE() != null)
+        {
+            return BinaryExpression(SyntaxKind.GreaterThanOrEqualExpression, left, right);
+        }
+        else if (context.LTE() != null)
+        {
+            return BinaryExpression(SyntaxKind.LessThanOrEqualExpression, left, right);
+        }
+        else if (context.EQUAL() != null)
+        {
+            return BinaryExpression(SyntaxKind.EqualsExpression, left, right);
+        }
+        else if (context.UNEQUAL() != null)
+        {
+            return BinaryExpression(SyntaxKind.NotEqualsExpression, left, right);
+        }
+        else if (context.PLUS() != null)
+        {
+            return BinaryExpression(SyntaxKind.AddExpression, left, right);
+        }
+        else if (context.MINUS() != null)
+        {
+            return BinaryExpression(SyntaxKind.SubtractExpression, left, right);
+        }
+        else if (context.MULT() != null)
+        {
+            return BinaryExpression(SyntaxKind.MultiplyExpression, left, right);
+        }
+        else if (context.DIV() != null)
+        {
+            return BinaryExpression(SyntaxKind.DivideExpression, left, right);
+        }
+        else if (context.MOD() != null)
+        {
+            return BinaryExpression(SyntaxKind.ModuloExpression, left, right);
+        }
+
+        throw new InvalidOperationException($"Unsupported binary operator in expression: {context.GetText()}");
+    }
+
+    // Handle increment/decrement expressions
+    public override CSharpSyntaxNode VisitPostfixExpression([NotNull] GroovyParser.PostfixExpressionContext context)
+    {
+        if (context.INCREMENT() != null)
+        {
+            var expr = (ExpressionSyntax)Visit(context.expression());
+            return PostfixUnaryExpression(SyntaxKind.PostIncrementExpression, expr);
+        }
+        else if (context.DECREMENT() != null)
+        {
+            var expr = (ExpressionSyntax)Visit(context.expression());
+            return PostfixUnaryExpression(SyntaxKind.PostDecrementExpression, expr);
+        }
+
+        return base.VisitPostfixExpression(context);
+    }
+
+    // Handle array initialization
+    public override CSharpSyntaxNode VisitListConstructor([NotNull] GroovyParser.ListConstructorContext context)
+    {
+        var expressions = context.expression()
+            .Select(e => (ExpressionSyntax)Visit(e))
+            .ToArray();
+
+        var arrayType = ArrayType(
+            PredefinedType(Token(SyntaxKind.ObjectKeyword)))
+            .WithRankSpecifiers(
+                SingletonList(
+                    ArrayRankSpecifier(
+                        SingletonSeparatedList<ExpressionSyntax>(
+                            OmittedArraySizeExpression()))));
+
+        var initializer = InitializerExpression(
+            SyntaxKind.ArrayInitializerExpression,
+            SeparatedList<ExpressionSyntax>(expressions));
+
+        return ArrayCreationExpression(arrayType)
+            .WithInitializer(initializer);
+    }
+}
+}

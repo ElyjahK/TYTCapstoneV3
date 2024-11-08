@@ -5,10 +5,10 @@ using Microsoft.CodeAnalysis.CSharp;
 using Microsoft.CodeAnalysis;
 using Castle.DynamicProxy;
 
-namespace TYTCapstone.Tests
+namespace TYTCapstone.Tests.Categories.Loops
 {
     [TestClass]
-    public class GStringTests
+    public class LoopTests
     {
         private GroovyToCSharpTranspiler _transpiler;
         public TestContext TestContext { get; set; }
@@ -54,13 +54,15 @@ namespace TYTCapstone.Tests
             Log("");
         }
 
-        //[TestMethod]
-        /*public void GStringTest_1()
+        [TestMethod]
+        public void TestClassicForLoop()
         {
             // Arrange
-            Log("\n=== Testing Basic Groovy Transpilation ===");
+            Log("\n=== Testing Classic For Loop Transpilation ===");
             Log("\nInput Groovy Code:");
-            var groovyCode = "def greeting = 'Hello'\r\ndef name = 'World'\r\nprintln \"${greeting}, ${name}!\"\r\n";
+            var groovyCode = @"for (def i = 0; i < 5; i++) {
+    println i;
+}";
             Log(groovyCode);
 
             try
@@ -68,32 +70,32 @@ namespace TYTCapstone.Tests
                 // Act
                 PrintTokens(groovyCode);
                 var parser = ParseGroovy(groovyCode);
-                
                 var tree = parser.compilationUnit();
                 Log("\nParse Tree Structure:");
                 Log(tree.ToStringTree(parser));
                 
                 var result = _transpiler.Transpile(tree);
 
-                // Assert
+                // Log the generated code BEFORE assertions
                 Assert.IsNotNull(result, "Transpilation result should not be null");
                 var csharpCode = result.NormalizeWhitespace().ToFullString();
-                
-                Log("\nGenerated C# code:");
+                Log("\nGenerated C# code (before assertions):");
                 Log(csharpCode);
-                
-                Log("\nStructure Validation:");
-                Log($"- Contains greeting variable: {csharpCode.Contains("var greeting = \"Hello\"")}");
-                Log($"- Contains name variable: {csharpCode.Contains("var name = \"World\"")}");
-                Log($"- Contains Console.WriteLine: {csharpCode.Contains("Console.WriteLine")}");
 
-                // Detailed assertions
-                Assert.IsTrue(csharpCode.Contains("var greeting = \"Hello\""), 
-                    "Should contain greeting variable declaration");
-                Assert.IsTrue(csharpCode.Contains("var name = \"World\""), 
-                    "Should contain name variable declaration");
-                Assert.IsTrue(csharpCode.Contains("Console.WriteLine"), 
-                    "Should contain Console.WriteLine");
+                // Add debug information about specific parts we're looking for
+                Log("\nDebug Information:");
+                Log($"Contains 'for': {csharpCode.Contains("for")}");
+                Log($"Contains 'var i = 0': {csharpCode.Contains("var i = 0")}");
+                Log($"Contains 'i < 5': {csharpCode.Contains("i < 5")}");
+                Log($"Contains 'i++': {csharpCode.Contains("i++")}");
+                Log($"Contains 'Console.WriteLine': {csharpCode.Contains("Console.WriteLine")}");
+
+                // Verify the structure
+                Assert.IsTrue(csharpCode.Contains("for"), "Should contain for keyword");
+                Assert.IsTrue(csharpCode.Contains("var i = 0"), "Should contain initialization");
+                Assert.IsTrue(csharpCode.Contains("i < 5"), "Should contain condition");
+                Assert.IsTrue(csharpCode.Contains("i++"), "Should contain increment");
+                Assert.IsTrue(csharpCode.Contains("Console.WriteLine"), "Should contain WriteLine");
 
                 Log("\nTest completed successfully!");
             }
@@ -102,83 +104,19 @@ namespace TYTCapstone.Tests
                 Log($"\nDetailed Exception Information:");
                 Log($"Message: {ex.Message}");
                 Log($"Stack Trace: {ex.StackTrace}");
-                Assert.Fail($"Transpilation failed: {ex.Message}\n{ex.StackTrace}");
-            }
-        }
-*/
-        [TestMethod]
-        public void GStringTest_2()
-        {
-            // Arrange
-            Log("\n=== Testing Basic Groovy Transpilation ===");
-            Log("\nInput Groovy Code:");
-            var groovyCode = "def greeting = 'Hello';\r\ndef name = 'World';\r\ndef extra = 'I am a program';\r\nprintln \"${greeting}, ${name}! This is a test for GStrings. ${extra}\";";
-            Log(groovyCode);
-
-            try
-            {
-                // Act
-                PrintTokens(groovyCode);
-                var parser = ParseGroovy(groovyCode);
-
-                var tree = parser.compilationUnit();
-                Log("\nParse Tree Structure:");
-                Log(tree.ToStringTree(parser));
-
-                var result = _transpiler.Transpile(tree);
-
-                // Assert
-                Assert.IsNotNull(result, "Transpilation result should not be null");
-                var csharpCode = result.NormalizeWhitespace().ToFullString();
-
-                Log("\nGenerated C# code:");
-                Log(csharpCode);
-
-                Log("\nStructure Validation:");
-                Log($"- Contains greeting variable: {csharpCode.Contains("var greeting = \"Hello\"")}");
-                Log($"- Contains name variable: {csharpCode.Contains("var name = \"World\"")}");
-                Log($"- Contains name variable: {csharpCode.Contains("var extra = \"I am a program\"")}");
-                Log($"- Contains Console.WriteLine: {csharpCode.Contains("Console.WriteLine")}");
-
-                // Detailed assertions
-                Assert.IsTrue(csharpCode.Contains("var greeting = \"Hello\""),
-                    "Should contain greeting variable declaration");
-
-                Assert.IsTrue(csharpCode.Contains("var name = \"World\""),
-                    "Should contain name variable declaration");
-
-                Assert.IsTrue(csharpCode.Contains("var extra = \"I am a program\""),
-                    "Should contain extra variable declaration");
-
-                Assert.IsTrue(csharpCode.Contains("Console.WriteLine"),
-                    "Should contain Console.WriteLine");
-
-                Assert.IsTrue(csharpCode.Contains("! This is a test for GStrings. "),
-                    "Should contain '! This is a test for GStrings.'");
-
-                Log("\nTest completed successfully!");
-            }
-            catch (Exception ex)
-            {
-                Log($"\nDetailed Exception Information:");
-                Log($"Message: {ex.Message}");
-                Log($"Stack Trace: {ex.StackTrace}");
-                Assert.Fail($"Transpilation failed: {ex.Message}\n{ex.StackTrace}");
+                throw; // Re-throw to preserve the original stack trace
             }
         }
 
         [TestMethod]
-        public void TestIfStatement()
+        public void TestForInLoop()
         {
             // Arrange
-            Log("\n=== Testing If Statement Transpilation ===");
+            Log("\n=== Testing For-In Loop Transpilation ===");
             Log("\nInput Groovy Code:");
-            var groovyCode = @"
-def x = 10;
-if (x > 5) {
-    println 'Greater than 5';
-} else {
-    println 'Less than or equal to 5';
+            var groovyCode = @"def numbers = [1, 2, 3, 4, 5];
+for (num in numbers) {
+    println num;
 }";
             Log(groovyCode);
 
@@ -200,15 +138,11 @@ if (x > 5) {
                 Log("\nGenerated C# code:");
                 Log(csharpCode);
 
-                // Verify if statement structure
-                Assert.IsTrue(csharpCode.Contains("if (x > 5)"), 
-                    "Should contain if condition");
-                Assert.IsTrue(csharpCode.Contains("Console.WriteLine(\"Greater than 5\")"), 
-                    "Should contain true branch statement");
-                Assert.IsTrue(csharpCode.Contains("else"), 
-                    "Should contain else keyword");
-                Assert.IsTrue(csharpCode.Contains("Console.WriteLine(\"Less than or equal to 5\")"), 
-                    "Should contain false branch statement");
+                // Verify the structure
+                Assert.IsTrue(csharpCode.Contains("foreach"), "Should contain foreach keyword");
+                Assert.IsTrue(csharpCode.Contains("var num"), "Should contain iteration variable");
+                Assert.IsTrue(csharpCode.Contains("numbers"), "Should contain collection name");
+                Assert.IsTrue(csharpCode.Contains("Console.WriteLine"), "Should contain WriteLine");
 
                 Log("\nTest completed successfully!");
             }
@@ -222,22 +156,14 @@ if (x > 5) {
         }
 
         [TestMethod]
-        public void TestSwitchStatement()
+        public void TestForColonLoop()
         {
             // Arrange
-            Log("\n=== Testing Switch Statement Transpilation ===");
+            Log("\n=== Testing For-Colon Loop Transpilation ===");
             Log("\nInput Groovy Code:");
-            var groovyCode = @"
-def value = 2;
-switch (value) {
-    case 1:
-        println 'One';
-        break;
-    case 2:
-        println 'Two';
-        break;
-    default:
-        println 'Other';
+            var groovyCode = @"def numbers = [1, 2, 3, 4, 5];
+for (int num : numbers) {
+    println num;
 }";
             Log(groovyCode);
 
@@ -259,23 +185,11 @@ switch (value) {
                 Log("\nGenerated C# code:");
                 Log(csharpCode);
 
-                // Verify switch statement structure
-                Assert.IsTrue(csharpCode.Contains("switch (value)"), 
-                    "Should contain switch statement");
-                Assert.IsTrue(csharpCode.Contains("case 1:"), 
-                    "Should contain case 1");
-                Assert.IsTrue(csharpCode.Contains("Console.WriteLine(\"One\")"), 
-                    "Should contain case 1 statement");
-                Assert.IsTrue(csharpCode.Contains("case 2:"), 
-                    "Should contain case 2");
-                Assert.IsTrue(csharpCode.Contains("Console.WriteLine(\"Two\")"), 
-                    "Should contain case 2 statement");
-                Assert.IsTrue(csharpCode.Contains("default:"), 
-                    "Should contain default case");
-                Assert.IsTrue(csharpCode.Contains("Console.WriteLine(\"Other\")"), 
-                    "Should contain default case statement");
-                Assert.IsTrue(csharpCode.Contains("break;"), 
-                    "Should contain break statements");
+                // Verify the structure
+                Assert.IsTrue(csharpCode.Contains("foreach"), "Should contain foreach keyword");
+                Assert.IsTrue(csharpCode.Contains("int num"), "Should contain typed iteration variable");
+                Assert.IsTrue(csharpCode.Contains("numbers"), "Should contain collection name");
+                Assert.IsTrue(csharpCode.Contains("Console.WriteLine"), "Should contain WriteLine");
 
                 Log("\nTest completed successfully!");
             }
@@ -287,24 +201,53 @@ switch (value) {
                 Assert.Fail($"Transpilation failed: {ex.Message}\n{ex.StackTrace}");
             }
         }
-    }
 
-
-
-    // Add custom error listener
-    public class ParserErrorListener : IAntlrErrorListener<IToken>
-    {
-        public void SyntaxError(TextWriter output, IRecognizer recognizer, IToken offendingSymbol, 
-            int line, int charPositionInLine, string msg, RecognitionException e)
+        [TestMethod]
+        public void TestWhileLoop()
         {
-            var error = $"Line {line}:{charPositionInLine} {msg}";
-            Console.WriteLine($"\nParse Error: {error}");
-            throw new ParseException(error);
-        }
-    }
+            // Arrange
+            Log("\n=== Testing While Loop Transpilation ===");
+            Log("\nInput Groovy Code:");
+            var groovyCode = @"def count = 0;
+while (count < 5) {
+    println count;
+    count++;
+}";
+            Log(groovyCode);
 
-    public class ParseException : Exception
-    {
-        public ParseException(string message) : base(message) { }
+            try
+            {
+                // Act
+                PrintTokens(groovyCode);
+                var parser = ParseGroovy(groovyCode);
+                var tree = parser.compilationUnit();
+                Log("\nParse Tree Structure:");
+                Log(tree.ToStringTree(parser));
+                
+                var result = _transpiler.Transpile(tree);
+
+                // Assert
+                Assert.IsNotNull(result, "Transpilation result should not be null");
+                var csharpCode = result.NormalizeWhitespace().ToFullString();
+                
+                Log("\nGenerated C# code:");
+                Log(csharpCode);
+
+                // Verify the structure
+                Assert.IsTrue(csharpCode.Contains("while"), "Should contain while keyword");
+                Assert.IsTrue(csharpCode.Contains("count < 5"), "Should contain condition");
+                Assert.IsTrue(csharpCode.Contains("count++"), "Should contain increment");
+                Assert.IsTrue(csharpCode.Contains("Console.WriteLine"), "Should contain WriteLine");
+
+                Log("\nTest completed successfully!");
+            }
+            catch (Exception ex)
+            {
+                Log($"\nDetailed Exception Information:");
+                Log($"Message: {ex.Message}");
+                Log($"Stack Trace: {ex.StackTrace}");
+                Assert.Fail($"Transpilation failed: {ex.Message}\n{ex.StackTrace}");
+            }
+        }
     }
 }
