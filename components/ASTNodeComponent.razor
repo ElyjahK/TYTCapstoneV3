@@ -1,0 +1,24 @@
+@namespace TYTCapstone
+
+@* @if (Node != null)
+{
+    <ul>
+        <li>
+            <span>@Node.GetType().Name: @Node.Text</span>
+            @if (Node.Children != null && Node.Children.Count > 0)
+            {
+                <ul>
+                    @foreach (var child in Node.Children)
+                    {
+                        <ASTNodeComponent Node="child" />
+                    }
+                </ul>
+            }
+        </li>
+    </ul>
+}
+
+@code {
+    [Parameter]
+    public ASTNode Node { get; set; }
+} *@

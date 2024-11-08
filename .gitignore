@@ -1,0 +1,6 @@
+.venv
+venv
+.git
+bin/
+obj/
+.vs

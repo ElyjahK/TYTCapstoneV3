@@ -1,0 +1,320 @@
+﻿@page "/"
+@using Antlr4.Runtime;
+@using System.Text.Json;
+@using Antlr4.Runtime.Tree;
+@using Antlr4.Runtime.Tree.Xpath;
+@using System.Text;
+@inject IJSRuntime jsRuntime
+@using Microsoft.AspNetCore.Components.Forms
+@using TYTCapstone.Transpiler
+@using Microsoft.CodeAnalysis;
+@using Microsoft.CodeAnalysis.CSharp;
+
+<InputFile OnChange="@HandleFileUpload" />
+<button @onclick="TranspileGroovyCode">Transpile</button>
+<button @onclick="RenderParseTree" disabled="@(!HasFileContent)">Render Parse Tree</button>
+
+<div class="mt-3">
+    @if (ErrorMessage != null)
+    {
+        <div class="alert alert-danger">@ErrorMessage</div>
+    }
+</div>
+
+<pre>
+    @TreeString
+</pre>
+
+@if (TranspiledGroovy is not null)
+{
+    <pre>
+        @TranspiledGroovy
+    </pre>
+}
+
+<div id="parseTree"></div>
+
+<div class="row mt-3">
+    <div class="col">
+        <select class="form-select" @bind="selectedVisitor">
+            <option value="">Select a visitor to test...</option>
+            <option value="ClassDeclaration">Class Declaration Visitor</option>
+            <option value="MethodDeclaration">Method Declaration Visitor</option>
+            <option value="FieldDeclaration">Field Declaration Visitor</option>
+            <option value="BlockStatement">Block Statement Visitor</option>
+            <option value="IfStatement">If Statement Visitor</option>
+            <option value="WhileStatement">While Statement Visitor</option>
+            <option value="ForInStatement">For-In Statement Visitor</option>
+        </select>
+    </div>
+</div>
+
+<div class="row mt-3">
+    <div class="col">
+        <textarea class="form-control" @bind="testInput" rows="10" 
+                  placeholder="Enter Groovy code snippet to test..."></textarea>
+    </div>
+</div>
+
+<button class="btn btn-primary mt-3" @onclick="TestVisitor" 
+        disabled="@(string.IsNullOrEmpty(selectedVisitor))">
+    Test Visitor
+</button>
+
+<div class="mt-3">
+    @if (!string.IsNullOrEmpty(visitorResult))
+    {
+        <pre class="border p-3">@visitorResult</pre>
+    }
+</div>
+
+<div class="row mt-3">
+    <div class="col">
+        <button class="btn btn-secondary" @onclick="LoadExample">Load Example</button>
+    </div>
+</div>
+
+@code {
+    private string? TreeString { get; set; }
+    private TreeNode? TreeData { get; set; }
+    private string? TreeStringJson { get; set; }
+    private string? ErrorMessage { get; set; }
+    private bool HasFileContent { get; set; }
+    private string FileContent { get; set; } = string.Empty;
+    private string? TranspiledGroovy { get; set; } = "";
+
+    GroovyParser.CompilationUnitContext? GroovyTree;
+    GroovyToCSharpTranspiler Transpiler = new GroovyToCSharpTranspiler();
+
+    private string selectedVisitor = "";
+    private string testInput = "";
+    private string visitorResult = "";
+    private GroovyToCSharpTranspiler testTranspiler = new();
+
+    private async Task TranspileGroovyCode()
+    {
+        try
+        {
+            var inputStream = new AntlrInputStream(FileContent);
+            var lexer = new GroovyLexer(inputStream);
+            var tokenStream = new CommonTokenStream(lexer);
+            var parser = new GroovyParser(tokenStream);
+            
+            var transpiler = new GroovyToCSharpTranspiler();
+            var result = transpiler.Transpile(parser.compilationUnit());
+            
+            TranspiledGroovy = result?.ToString();
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = ex.Message;
+        }
+    }
+
+    private async Task HandleFileUpload(InputFileChangeEventArgs e)
+    {
+        try
+        {
+            ErrorMessage = null;
+            var file = e.File;
+            if (file.ContentType != "text/x-groovy" && !file.Name.EndsWith(".groovy"))
+            {
+                ErrorMessage = "Please upload a Groovy file (.groovy)";
+                return;
+            }
+
+            using var reader = new StreamReader(file.OpenReadStream());
+            FileContent = await reader.ReadToEndAsync();
+            ParseGroovyCode(FileContent);
+            HasFileContent = true;
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error processing file: {ex.Message}";
+            HasFileContent = false;
+        }
+    }
+
+    private void ParseGroovyCode(string code)
+    {
+        try
+        {
+            AntlrInputStream inputStream = new AntlrInputStream(code);
+            GroovyLexer lexer = new GroovyLexer(inputStream);
+            CommonTokenStream tokenStream = new CommonTokenStream(lexer);
+            GroovyParser parser = new GroovyParser(tokenStream);
+            GroovyTree = parser.compilationUnit();
+
+            TreeString = PrettyPrintTree(GroovyTree.ToStringTree(parser));
+
+            ParseTreeJsonConverter converter = new ParseTreeJsonConverter();
+            TreeNode rootNode = converter.ConvertToJson(GroovyTree, parser);
+
+            TreeStringJson = JsonSerializer.Serialize(rootNode, new JsonSerializerOptions { WriteIndented = true });
+        }
+        catch (Exception ex)
+        {
+            ErrorMessage = $"Error parsing Groovy code: {ex.Message}";
+        }
+    }
+
+    public async Task RenderParseTree()
+    {
+        await jsRuntime.InvokeVoidAsync("renderParseTree", JsonDocument.Parse(TreeStringJson).RootElement);
+    }
+
+    public static string PrettyPrintTree(string treeString)
+    {
+        var result = new StringBuilder();
+        int indentLevel = 0;
+
+        foreach (char c in treeString)
+        {
+            if (c == '(')
+            {
+                result.AppendLine();
+                result.Append(new string(' ', indentLevel * 10));
+                result.Append(c);
+                indentLevel++;
+                result.AppendLine();
+                result.Append(new string(' ', indentLevel * 10));
+            }
+            else if (c == ')')
+            {
+                indentLevel--;
+                result.AppendLine();
+                result.Append(new string(' ', indentLevel * 10));
+                result.Append(c);
+            }
+            else if (c == ' ')
+            {
+                result.AppendLine();
+                result.Append(new string(' ', indentLevel * 10));
+            }
+            else
+            {
+                result.Append(c);
+            }
+        }
+
+        return result.ToString();
+    }
+
+    private void TestVisitor()
+    {
+        try
+        {
+            // Parse the input
+            var inputStream = new AntlrInputStream(testInput);
+            var lexer = new GroovyLexer(inputStream);
+            var tokenStream = new CommonTokenStream(lexer);
+            var parser = new GroovyParser(tokenStream);
+
+            // Select the appropriate parsing method based on visitor type
+            CSharpSyntaxNode? result = selectedVisitor switch
+            {
+                "ClassDeclaration" => TestClassDeclaration(parser),
+                "MethodDeclaration" => TestMethodDeclaration(parser),
+                "FieldDeclaration" => TestFieldDeclaration(parser),
+                "BlockStatement" => TestBlockStatement(parser),
+                "IfStatement" => TestIfStatement(parser),
+                "WhileStatement" => TestWhileStatement(parser),
+                "ForInStatement" => TestForInStatement(parser),
+                _ => null
+            };
+
+            visitorResult = result?.ToString() ?? "No result";
+        }
+        catch (Exception ex)
+        {
+            visitorResult = $"Error: {ex.Message}";
+        }
+    }
+
+    private CSharpSyntaxNode? TestClassDeclaration(GroovyParser parser)
+    {
+        var context = parser.classDeclaration();
+        return testTranspiler.VisitClassDeclaration(context);
+    }
+
+    private CSharpSyntaxNode? TestMethodDeclaration(GroovyParser parser)
+    {
+        var context = parser.methodDeclaration("YourClassName");
+        return testTranspiler.VisitMethodDeclaration(context);
+    }
+
+    private CSharpSyntaxNode? TestFieldDeclaration(GroovyParser parser)
+    {
+        var context = parser.fieldDeclaration();
+        return testTranspiler.VisitFieldDeclaration(context);
+    }
+
+    private CSharpSyntaxNode? TestBlockStatement(GroovyParser parser)
+    {
+        var context = parser.blockStatement();
+        return testTranspiler.VisitBlockStatement(context);
+    }
+
+    private CSharpSyntaxNode? TestIfStatement(GroovyParser parser)
+    {
+        var context = parser.statement();
+        if (context is GroovyParser.IfStatementContext ifContext)
+        {
+            return testTranspiler.VisitIfStatement(ifContext);
+        }
+        return null;
+    }
+
+    private CSharpSyntaxNode? TestWhileStatement(GroovyParser parser)
+    {
+        var context = parser.statement();
+        if (context is GroovyParser.WhileStatementContext whileContext)
+        {
+            return testTranspiler.VisitWhileStatement(whileContext);
+        }
+        return null;
+    }
+
+    private CSharpSyntaxNode? TestForInStatement(GroovyParser parser)
+    {
+        var context = parser.statement();
+        if (context is GroovyParser.ForInStatementContext forInContext)
+        {
+            return testTranspiler.VisitForInStatement(forInContext);
+        }
+        return null;
+    }
+
+    private void LoadExample()
+    {
+        testInput = selectedVisitor switch
+        {
+            "ClassDeclaration" => @"
+public class Person {
+    String name
+    int age
+}",
+            "MethodDeclaration" => @"
+public void sayHello(String name) {
+    println ""Hello ${name}""
+}",
+            "FieldDeclaration" => @"private String name",
+            "BlockStatement" => @"{ 
+    println ""Hello""
+    println ""World""
+}",
+            "IfStatement" => @"if (x > 0) {
+    doSomething()
+} else {
+    doSomethingElse()
+}",
+            "WhileStatement" => @"while (x < 10) {
+    x++
+}",
+            "ForInStatement" => @"for (item in items) {
+    process(item)
+}",
+            _ => ""
+        };
+    }
+}
