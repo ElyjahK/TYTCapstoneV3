@@ -15,6 +15,8 @@ namespace TYTCapstone.Tests
 
         private ProxyGenerator proxyGenerator = new ProxyGenerator();
 
+        private SemicolonInserter? SemicolonInserter { get; set; }
+
         [TestInitialize]
         public void Setup()
         {
@@ -61,6 +63,9 @@ namespace TYTCapstone.Tests
             Log("\n=== Testing Basic Groovy Transpilation ===");
             Log("\nInput Groovy Code:");
             var groovyCode = "def greeting = 'Hello'\r\ndef name = 'World'\r\nprintln \"${greeting}, ${name}!\"\r\n";
+            SemicolonInserter = new SemicolonInserter(groovyCode);
+            groovyCode = SemicolonInserter.Execute();
+
             Log(groovyCode);
 
             try
