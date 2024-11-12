@@ -399,5 +399,70 @@ namespace TYTCapstone.Tests.Categories.SemiColonInserter
 
             Assert.AreEqual("static private String createWhereProjections(CarLogFilterObjectService carLogFilter, //Filter for the car records\r\n                                             List <String> distincts, //Returns results using a single or collection of distinct property names - Usage: \"distinct(\"lastName\") or distinct(['firstName', 'lastName'])\"\r\n                                             List <String> avgs, //Returns the average value of the given property\r\n                                             List <String> counts, //Returns the count of the given property name\r\n                                             List <String> countDistincts,//Returns the distinct count of the given property name\r\n                                             String groupPropertyStr,//Groups the results by the given property\r\n                                             List <String> maxs, //Returns the maximum value of the given property\r\n                                             List <String> mins, //Returns the minimum value of the given property\r\n                                             List <String> sums, //Returns the sum of the given property\r\n                                             String rowCount //Returns count of the number of rows returned\r\n    ){}", result);
         }
+
+        [TestMethod]
+        public void ControlStructureTest2()
+        {
+            string code = "static boolean IsFieldGroupedDividedBy100(String field){\r\n        boolean rrIsDividedBy100 = AppConfigService.getBoolean('IsRRAndGradeShowingToHundredths', true)\r\n        if (rrIsDividedBy100 &&\r\n                (field.equals(\"throatRrError\") || field.equals(\"masterRrError\") || field.equals(\"interRrError\") || field.equals(\"groupRrError\") || field.equals(\"lastSwRrError\") || field.equals(\"curveRrError\") || field.equals(\"bowlRrError\")||\r\n                        field.equals('arm') || field.equals('ari') || field.equals('arg') || field.equals('arls') || field.equals('arc') || field.equals('arb') || field.equals('ard')||\r\n                        field.equals('art') || field.equals('arm') || field.equals('ari') || field.equals('arg') || field.equals('arls') || field.equals('arc') || field.equals('arb') || field.equals('ard')||\r\n                        field.equals('prt') || field.equals('prm') || field.equals('pri') || field.equals('prg') || field.equals('prls') || field.equals('prc') || field.equals('prb') ||\r\n                        field.equals('gt')  || field.equals('gm') || field.equals('gi') || field.equals('gg') || field.equals('gls') || field.equals('gc') || field.equals('gb') || field.equals('gbm') || field.equals('gbd'))\r\n        ){\r\n            return true\r\n        }else{\r\n            return false\r\n        }\r\n    }";
+
+            SemicolonInserter = new SemicolonInserter(code);
+            string result = SemicolonInserter.Execute();
+
+            Console.WriteLine("\n\nRESULT: \n\n" + result);
+
+            Assert.AreEqual("static boolean IsFieldGroupedDividedBy100(String field){\r\n        boolean rrIsDividedBy100 = AppConfigService.getBoolean('IsRRAndGradeShowingToHundredths', true);\r\n        if (rrIsDividedBy100 &&\r\n                (field.equals(\"throatRrError\") || field.equals(\"masterRrError\") || field.equals(\"interRrError\") || field.equals(\"groupRrError\") || field.equals(\"lastSwRrError\") || field.equals(\"curveRrError\") || field.equals(\"bowlRrError\")||\r\n                        field.equals('arm') || field.equals('ari') || field.equals('arg') || field.equals('arls') || field.equals('arc') || field.equals('arb') || field.equals('ard')||\r\n                        field.equals('art') || field.equals('arm') || field.equals('ari') || field.equals('arg') || field.equals('arls') || field.equals('arc') || field.equals('arb') || field.equals('ard')||\r\n                        field.equals('prt') || field.equals('prm') || field.equals('pri') || field.equals('prg') || field.equals('prls') || field.equals('prc') || field.equals('prb') ||\r\n                        field.equals('gt')  || field.equals('gm') || field.equals('gi') || field.equals('gg') || field.equals('gls') || field.equals('gc') || field.equals('gb') || field.equals('gbm') || field.equals('gbd'))\r\n        ){\r\n            return true;\r\n        }else{\r\n            return false;\r\n        }\r\n    }", result);
+        }
+
+        [TestMethod]
+        public void ControlStructureTest3()
+        {
+            string code = "static boolean IsFieldDisplayedDividedBy100(String field){\r\n        boolean varDividedBy100\r\n        //boolean rrIsDividedBy100 = AppConfigService.getBoolean('IsRRAndGradeShowingToHundredths', true)\r\n        if ( items_DisplayedDividedBy100().contains(field) ||\r\n                (IsFieldGroupedDividedBy100(field))\r\n        ){\r\n            varDividedBy100 = true;\r\n        }else{\r\n            varDividedBy100 = false\r\n        }\r\n        return varDividedBy100\r\n    }";
+
+            SemicolonInserter = new SemicolonInserter(code);
+            string result = SemicolonInserter.Execute();
+
+            Console.WriteLine("\n\nRESULT: \n\n" + result);
+
+            Assert.AreEqual("static boolean IsFieldDisplayedDividedBy100(String field){\r\n        boolean varDividedBy100;\r\n        //boolean rrIsDividedBy100 = AppConfigService.getBoolean('IsRRAndGradeShowingToHundredths', true)\r\n        if ( items_DisplayedDividedBy100().contains(field) ||\r\n                (IsFieldGroupedDividedBy100(field))\r\n        ){\r\n            varDividedBy100 = true;\r\n        }else{\r\n            varDividedBy100 = false;\r\n        }\r\n        return varDividedBy100;\r\n    }", result);
+        }
+
+        [TestMethod]
+        public void NonBlockIfStatementTest()
+        {
+            string code = "if (lookForSeqPrev)\r\n                filterNext.seq = [lastCar.seq+1]\r\n            else\r\n                filterNext.seq = [lastCar.seq-1]\r\n            filterNext.orderByActual = [\"logDate\":\"desc\"]\r\n\r\n            List <CarLog> nextCars = returnCarLogList(filterNext)\r\n\r\n            if (nextCars.size()>0)\r\n                return nextCars[0] as CarLog";
+
+            SemicolonInserter = new SemicolonInserter(code);
+            string result = SemicolonInserter.Execute();
+
+            Console.WriteLine("\n\nRESULT: \n\n" + result);
+
+            Assert.AreEqual("if (lookForSeqPrev)\r\n                filterNext.seq = [lastCar.seq+1];\r\n            else\r\n                filterNext.seq = [lastCar.seq-1];\r\n            filterNext.orderByActual = [\"logDate\":\"desc\"];\r\n\r\n            List <CarLog> nextCars = returnCarLogList(filterNext);\r\n\r\n            if (nextCars.size()>0)\r\n                return nextCars[0] as CarLog;", result);
+        }
+
+        [TestMethod]
+        public void NestedClosuresTest2()
+        {
+            string code = "def multiplier = { x ->\r\n    return { y ->\r\n        x * y\r\n    }\r\n}\r\n\r\ndef double = multiplier(2)\r\ndef triple = multiplier(3)\r\n\r\nprintln double(5)\r\nprintln triple(5)\r\n\r\ntry {\r\n    def result = 10 / 0\r\n} catch (ArithmeticException e) {\r\n    println \"Caught exception: ${e.message}\"\r\n} finally {\r\n    println \"Execution completed\"\r\n}";
+
+            SemicolonInserter = new SemicolonInserter(code);
+            string result = SemicolonInserter.Execute();
+
+            Console.WriteLine("\n\nRESULT: \n\n" + result);
+
+            Assert.AreEqual("def multiplier = { x ->\r\n    return { y ->\r\n        x * y;\r\n    };\r\n};\r\n\r\ndef double = multiplier(2);\r\ndef triple = multiplier(3);\r\n\r\nprintln double(5);\r\nprintln triple(5);\r\n\r\ntry {\r\n    def result = 10 / 0;\r\n} catch (ArithmeticException e) {\r\n    println \"Caught exception: ${e.message}\";\r\n} finally {\r\n    println \"Execution completed\";\r\n}", result);
+        }
+
+        [TestMethod]
+        public void FunctionalProgrammingTest()
+        {
+            string code = "def numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9]\r\n\r\ndef evenNumbers = numbers.findAll { it % 2 == 0 }\r\n\r\nevenNumbers.each { num ->\r\n    println \"Even number: $num\"\r\n}\r\n\r\ndef sum = numbers.inject(0) { total, element ->\r\n    total + element\r\n}\r\n\r\nprintln \"Sum of numbers: $sum\"\r\n\r\ndef maxNumber = numbers.max()\r\nprintln \"Maximum number is $maxNumber\"\r\n\r\ndef map = [name: 'John Doe', age: 30, email: 'john.doe@example.com']\r\n\r\nmap.each { key, value ->\r\n    println \"$key: $value\"\r\n}\r\n";
+
+            SemicolonInserter = new SemicolonInserter(code);
+            string result = SemicolonInserter.Execute();
+
+            Console.WriteLine("\n\nRESULT: \n\n" + result);
+
+            Assert.AreEqual("def numbers = [1, 2, 3, 4, 5, 6, 7, 8, 9];\r\n\r\ndef evenNumbers = numbers.findAll { it % 2 == 0 };\r\n\r\nevenNumbers.each { num ->\r\n    println \"Even number: $num\";\r\n};\r\n\r\ndef sum = numbers.inject(0) { total, element ->\r\n    total + element;\r\n};\r\n\r\nprintln \"Sum of numbers: $sum\";\r\n\r\ndef maxNumber = numbers.max();\r\nprintln \"Maximum number is $maxNumber\";\r\n\r\ndef map = [name: 'John Doe', age: 30, email: 'john.doe@example.com'];\r\n\r\nmap.each { key, value ->\r\n    println \"$key: $value\";\r\n};\r\n", result);
+        }
     }
 }
