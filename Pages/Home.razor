@@ -21,8 +21,8 @@
     }
 </div> *@
 
-<input @bind=TestSemicolonInserterText/>
-<button @onclick="TestSemicolonInserter"></button>
+<textarea @bind=TestSemicolonInserterText/>
+<button @onclick="TestSemicolonInserter">Submit</button>
 
 <pre>
     @TestSemicolonInserterTextOutput
@@ -103,6 +103,11 @@
     {
         Inserter = new SemicolonInserter(TestSemicolonInserterText);
         TestSemicolonInserterTextOutput = Inserter.Execute();
+
+        Console.WriteLine(TestSemicolonInserterTextOutput.Contains('\n'));
+        Console.WriteLine(TestSemicolonInserterTextOutput.Contains('\r'));
+
+        Console.WriteLine(TestSemicolonInserterTextOutput);
     }
 
     private async Task TranspileGroovyCode()

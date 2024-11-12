@@ -1,4 +1,5 @@
-﻿using Microsoft.Testing.Platform.Extensions.TestFramework;
+﻿using Microsoft.Extensions.Primitives;
+using Microsoft.Testing.Platform.Extensions.TestFramework;
 using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -70,10 +71,7 @@ namespace TYTCapstone
             // Pattern to match comments at the end of the line, ignoring strings
             string pattern = @"(?<code>.*?)(?<comment>\s*(//.*|/\*.*))?$";
 
-            // Remove string literals to avoid matching comment markers inside strings
-            string lineWithoutStrings = Regex.Replace(line, @"""([^""\\]|\\.)*""", "\"\"");
-
-            Match match = Regex.Match(lineWithoutStrings, pattern);
+            Match match = Regex.Match(line, pattern);
             if (match.Success && match.Groups["comment"].Success)
             {
                 return match.Groups["comment"].Value;
@@ -81,15 +79,37 @@ namespace TYTCapstone
             return ""; // No comment found
         }
 
+        private bool BlockContainsNothing(string line)
+        {
+            int idx1 = line.IndexOf('{');
+            int idx2 = line.IndexOf('}');
+
+            return idx2 - idx1 == 1;
+        }
+
+        private bool ParensAreBalanced(string line)
+        {
+            Stack<char> chars = new Stack<char>();
+
+            foreach (char c in line){
+                if (c == '(')
+                    chars.Push(c);
+                if (c == ')' && chars.Count > 0)
+                    chars.Pop();
+            }
+
+            return !(chars.Count > 0);
+        }
+
         public string Execute()
         {
             StringBuilder sb = new StringBuilder();
 
-            CodeLines = GroovySourceCode.Split('\n').ToList();
+            CodeLines = Regex.Split(GroovySourceCode, @"(?<=[\n])").ToList();
             
             foreach (string line in CodeLines) 
             {
-                Console.WriteLine("current line: " + line);
+                Console.WriteLine("\n\nCURRENT LINE: " + line);
                 if (string.IsNullOrEmpty(line))
                 {
                     Counter++;
@@ -135,7 +155,7 @@ namespace TYTCapstone
                     }
 
                     commentCache = GetInlineComment(trimmedLine);
-                    Console.WriteLine(commentCache);
+                    Console.WriteLine("FOUND COMMENT: " + commentCache);
 
                     Console.WriteLine("in inline comment logic: " + trimmedLine);
                     trimmedLine = trimmedLine.Replace(commentCache, "");
@@ -171,7 +191,7 @@ namespace TYTCapstone
                     InMultilineString = true;
 
                     Console.WriteLine("Multiline comment start: " + trimmedLine);
-                    sb.Append(trimmedLine + DetermineEndingWhitespace(whitespaceTrivia));
+                    sb.Append(trimmedLine + commentCache + DetermineEndingWhitespace(whitespaceTrivia));
 
                     Counter++;
                     continue;
@@ -180,7 +200,7 @@ namespace TYTCapstone
                 if (InMultilineComment || InMultilineString)
                 {
                     Console.WriteLine("Still in multiline string or comment: " + trimmedLine);
-                    sb.Append(trimmedLine + DetermineEndingWhitespace(whitespaceTrivia));
+                    sb.Append(trimmedLine + commentCache + DetermineEndingWhitespace(whitespaceTrivia));
                     Counter++;
                     continue;
                 }
@@ -201,7 +221,7 @@ namespace TYTCapstone
                 if (InChainedMethodCall is true)
                 {
                     Console.WriteLine("Still in chained method call" + trimmedLine);
-                    sb.Append(trimmedLine + DetermineEndingWhitespace(whitespaceTrivia));
+                    sb.Append(trimmedLine + commentCache + DetermineEndingWhitespace(whitespaceTrivia));
 
                     Counter++;
                     continue;
@@ -214,7 +234,7 @@ namespace TYTCapstone
 
                     InChainedMethodCall = true;
 
-                    sb.Append(trimmedLine + DetermineEndingWhitespace(whitespaceTrivia));
+                    sb.Append(trimmedLine + commentCache + DetermineEndingWhitespace(whitespaceTrivia));
 
                     Counter++;
                     continue;
@@ -225,17 +245,17 @@ namespace TYTCapstone
                     CLOSURE_STACK.Push(1);
 
                     Console.WriteLine("In closure: " + trimmedLine);
-                    sb.Append(trimmedLine + DetermineEndingWhitespace(whitespaceTrivia));
+                    sb.Append(trimmedLine + commentCache + DetermineEndingWhitespace(whitespaceTrivia));
                     Counter++;
                     continue;
                 }
 
-                if (trimmedLine.EndsWith("("))
+                if (trimmedLine.EndsWith("(") || ParensAreBalanced(trimmedLine) is false)
                 {
                     METHOD_CALL_STACK.Push(1);
 
                     Console.WriteLine("In unfinished method call: " + trimmedLine);
-                    sb.Append(trimmedLine + DetermineEndingWhitespace(whitespaceTrivia));
+                    sb.Append(trimmedLine + commentCache + DetermineEndingWhitespace(whitespaceTrivia));
                     Counter++;
                     continue;
                 }
@@ -245,7 +265,7 @@ namespace TYTCapstone
                     ENUMERABLE_STACK.Push(1);
 
                     Console.WriteLine("In unfinished enumerable declaration: " + trimmedLine);
-                    sb.Append(trimmedLine + DetermineEndingWhitespace(whitespaceTrivia));
+                    sb.Append(trimmedLine + commentCache + DetermineEndingWhitespace(whitespaceTrivia));
                     Counter++;
                     continue;
                 }
@@ -266,7 +286,7 @@ namespace TYTCapstone
                         if (SKIP_STACK.Count > 0)
                         {
                             Console.WriteLine("Skipping this line due to closure resolve: " + trimmedLine);
-                            sb.Append(trimmedLine + DetermineEndingWhitespace(whitespaceTrivia));
+                            sb.Append(trimmedLine + commentCache + DetermineEndingWhitespace(whitespaceTrivia));
 
                             SKIP_STACK.Pop();
 
@@ -294,8 +314,16 @@ namespace TYTCapstone
                         continue;
                     }
 
-                    if (trimmedLine.EndsWith("}") && trimmedLine.Contains("->") is false && trimmedLine.Contains("{"))
+                    if (trimmedLine.Contains("{") && trimmedLine.EndsWith("}") && trimmedLine.Contains("->") is false)
                     {
+                        if (BlockContainsNothing(trimmedLine)) 
+                        {
+                            Console.WriteLine("Empty block: " + trimmedLine);
+                            sb.Append(trimmedLine + commentCache + DetermineEndingWhitespace(whitespaceTrivia));
+                            Counter++;
+                            continue;
+                        }
+
                         Console.WriteLine("create silly closure " + trimmedLine);
                         trimmedLine = InsertSemicolonOntoLastClosureStatement(trimmedLine);
 
@@ -326,7 +354,7 @@ namespace TYTCapstone
                         continue;
                     }
 
-                    sb.Append(trimmedLine + DetermineEndingWhitespace(whitespaceTrivia));
+                    sb.Append(trimmedLine + commentCache + DetermineEndingWhitespace(whitespaceTrivia));
 
                     Counter++;
                     continue;
@@ -348,7 +376,7 @@ namespace TYTCapstone
 
                     Console.WriteLine("Still in unfinished method call: " + trimmedLine);
 
-                    sb.Append(trimmedLine + DetermineEndingWhitespace(whitespaceTrivia));
+                    sb.Append(trimmedLine + commentCache + DetermineEndingWhitespace(whitespaceTrivia));
 
                     Counter++;
                     continue;
@@ -371,7 +399,7 @@ namespace TYTCapstone
 
                     Console.WriteLine("Still in unfinished enumerable declaration: " + trimmedLine);
 
-                    sb.Append(trimmedLine + DetermineEndingWhitespace(whitespaceTrivia));
+                    sb.Append(trimmedLine + commentCache + DetermineEndingWhitespace(whitespaceTrivia));
 
                     Counter++;
                     continue;
